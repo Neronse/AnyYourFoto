@@ -21,4 +21,5 @@
     <string name="inetConnectBad">Check your internet connection and press refresh button</string>
     <string name="anotherRequest">Try another request</string>
     <string name="checkInternet">Check internet!!!</string>
+    <string name="broadcastPerort">Send error report with error code -1</string>
 </resources>

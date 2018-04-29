@@ -47,8 +47,6 @@ public class MyIntentService extends IntentService {
         mHandler = new Handler();
     }
 
-
-
     public static void startAction(Context context, String search, int page, boolean refresh) {
 
         Retrofit retrofit = new Retrofit.Builder()
@@ -113,8 +111,14 @@ public class MyIntentService extends IntentService {
             //если нет фото по запросу
             if(r.getPhotos().getTotal() == 0) {
                 mHandler.post(()->Toast.makeText(getApplicationContext(), R.string.anotherRequest, Toast.LENGTH_LONG).show());
-                serviceComplete();
+                serviceComplete(1);
                 stopSelf();
+                return;
+            }
+
+            if(currentPage > r.getPhotos().getPages()) {
+                mHandler.post(()->Toast.makeText(getApplicationContext(), R.string.lastPageAlert, Toast.LENGTH_LONG).show());
+                serviceComplete(2);
                 return;
             }
 
@@ -125,20 +129,21 @@ public class MyIntentService extends IntentService {
                 Photo p = photoList.get(i);
                 cv.put(PhotoTable.COLUMN_URL, createUrl(p));
                 contentValues[i] = cv;
-                if(currentPage >= r.getPhotos().getPages()) mHandler.post(()->Toast.makeText(getApplicationContext(), R.string.lastPageAlert, Toast.LENGTH_LONG).show());
             }
             getContentResolver().bulkInsert(FlickrContentProvider.CONTENT_URI, contentValues);
-            serviceComplete();
+            serviceComplete(1);
         } else if(r != null && r.getStat().equals("fail")){
             mHandler.post(()->Toast.makeText(getApplicationContext(), r.getMessage(),Toast.LENGTH_SHORT).show());
-            serviceComplete();
+            serviceComplete(0);
         }
     }
-
-    private void serviceComplete(){
+    // code 0 - зарезервировано
+    // code 1 - все ок
+    // code 2 - stopLoad = true
+    private void serviceComplete(int code){
         Intent responseIntent = new Intent(ACTION_LOAD);
         responseIntent.addCategory(Intent.CATEGORY_DEFAULT);
-        responseIntent.putExtra(SERVICE_COMPLETE, 1);
+        responseIntent.putExtra(SERVICE_COMPLETE, code);
         sendBroadcast(responseIntent);
     }
 

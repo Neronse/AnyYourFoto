@@ -46,14 +46,17 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
     public static final String CURRENT_PAGE = "CURRENT_PAGE";
     public static final String LAST_VISIBLE_ITEM = "LAST_VISIBLE_ITEM";
     public static final String LAST_SEARCH_TERM = "LAST_SEARCH_TERM";
+    public static final String LOADING_STATE = "LOADING_STATE";
     public static final int FIRST_PAGE = 1;
 
     // Порог
     // Если разница между крайним видимым элементом GridView и количеством
     // элементов в GridView меньше порога, запросим еще картинки с сервера
-    private static final int threshold = 40;
+    private static final int threshold = 6;
     //текщая страница запроса и просмотра, требует восстановления
     private int currentPage = 1;
+    //остановка попыток загрузки в случае достижения последней страницы.
+    private boolean stopLoad = false;
 
     //поисковый запрос по умолчанию
     private String term;
@@ -99,9 +102,8 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         mFab.show();
 
 
-        mFab.setOnClickListener(v -> {
-            refresh();
-        });
+        mFab.setOnClickListener(v -> refresh());
+
 
         //загрузим прошлое состояние полей term & currentPage
         loadActivityData();
@@ -133,13 +135,11 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
                 switch (scrollState) {
                     case SCROLL_STATE_IDLE:
                         mFab.show();
-                        if (mGrid.getLastVisiblePosition() >= mGrid.getCount() - threshold) {
+                        if (mGrid.getLastVisiblePosition() >= mGrid.getCount() - threshold && !stopLoad) {
                             if (isNetworkReady()) {
                                 currentPage++;
                                 MyIntentService.startAction(MainActivity.this, term, currentPage, false);
-
-                            } else
-                                Snackbar.make(mGrid, R.string.noInternetAlert, Snackbar.LENGTH_LONG).show();
+                            }
                         }
                         break;
                     case SCROLL_STATE_TOUCH_SCROLL:
@@ -166,12 +166,14 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
     protected void onSaveInstanceState(Bundle outState) {
         outState.putInt(CURRENT_PAGE, currentPage);
         outState.putInt(LAST_VISIBLE_ITEM, mGrid.getLastVisiblePosition());
+        outState.putBoolean(LOADING_STATE, stopLoad);
 
         super.onSaveInstanceState(outState);
     }
 
     @Override
     protected void onRestoreInstanceState(Bundle savedInstanceState) {
+        stopLoad = savedInstanceState.getBoolean(LOADING_STATE, false);
         currentPage = savedInstanceState.getInt(CURRENT_PAGE, 1);
         mGrid.smoothScrollToPosition(savedInstanceState.getInt(LAST_VISIBLE_ITEM));
 
@@ -227,6 +229,8 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
                         term = query;
                         //чистим базу от прошлого запроса
                         getContentResolver().delete(FlickrContentProvider.CONTENT_URI, null, null);
+                        //разрешаем загрузку и обновления
+                        stopLoad = false;
                         //грузим новый запрос
                         MyIntentService.startAction(MainActivity.this, term, FIRST_PAGE, false);
                         //сбрасываем текущую страницу
@@ -236,6 +240,7 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
                         //закрываем поиск
                         item.collapseActionView();
                         mProgressBar.setVisibility(View.VISIBLE);
+
                     }
                     return true;
                 } else {
@@ -263,6 +268,7 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         SharedPreferences.Editor editor = sPref.edit();
         editor.putString(LAST_SEARCH_TERM, term);
         editor.putInt(CURRENT_PAGE, currentPage);
+        editor.putBoolean(LOADING_STATE, stopLoad);
         editor.apply();
     }
 
@@ -270,6 +276,7 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         sPref = getPreferences(MODE_PRIVATE);
         term = sPref.getString(LAST_SEARCH_TERM, getString(R.string.defaultTerm));
         currentPage = sPref.getInt(CURRENT_PAGE, 1);
+        stopLoad = sPref.getBoolean(LOADING_STATE,false);
         changeToolbarTitle(term);
     }
 
@@ -286,8 +293,11 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
             MyIntentService.startAction(this, term, currentPage, true);
             mFab.hide();
             mProgressBar.setVisibility(View.VISIBLE);
-        } else
+        } else if(!isNetworkReady()){
             Toast.makeText(this, R.string.checkInternet, Toast.LENGTH_SHORT).show();
+        }else if (stopLoad)
+            Toast.makeText(this, R.string.anotherRequest, Toast.LENGTH_SHORT).show();
+
     }
 
     @Override
@@ -314,8 +324,26 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
                 //сообщение из exception не прочитано, передается на будущее.
             }
             if (intent.hasExtra(MyIntentService.SERVICE_COMPLETE)) {
-                mFab.show();
-                mProgressBar.setVisibility(View.GONE);
+                int code = intent.getIntExtra(MyIntentService.SERVICE_COMPLETE,-1);
+                switch (code){
+                    case 0:
+                        mFab.show();
+                        mProgressBar.setVisibility(View.GONE);
+                        break;
+                    case 1:
+                        mFab.show();
+                        mProgressBar.setVisibility(View.GONE);
+                        break;
+                    case 2: // состояние когда больше нет страниц с фотками
+                        stopLoad = true; //останавливаем попытки загрузить
+                        currentPage--; //для того, чтобы можно было обновить последнюю страницу фоток возвращаем значение на предыдущее
+                        mFab.show();
+                        mProgressBar.setVisibility(View.GONE);
+                        break;
+                        default:
+                            Toast.makeText(context, R.string.broadcastPerort, Toast.LENGTH_SHORT).show();
+                }
+
             }
         }
     }
