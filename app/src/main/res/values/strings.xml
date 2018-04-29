@@ -1,0 +1,24 @@
+<resources>
+    <string name="app_name">AnyYourFotoOr</string>
+
+    <string name="title_activity_detail_fullscreen">DetailFullscreenActivity</string>
+    <string name="share_button_text">Share Foto URL</string>
+    <string name="toolbar_title">Moto Foto Or …</string>
+    <string name="about_app">About app</string>
+    <string name="search">Search</string>
+    <string name="dialog_about_text1">Any Your Foto Or.....</string>
+    <string name="dialog_about_text2">This product uses the Flickr API but is not endorsed or certified by Flickr.</string>
+    <string name="dialog_about_text3">The application was created for educational purposes</string>
+    <string name="dialog_about_text4">You can find some fotos by tag and share URL to your friends.</string>
+
+    <string name="dialog_about_title">About application</string>
+    <string name="lastPageAlert">No more photos for this tag :(</string>
+    <string name="retrifitExecuteAlert">Something wrong… :(</string>
+    <string name="noInternetAlert">Need internet connection :(</string>
+    <string name="defaultTerm">moto</string>
+    <string name="send_to">Send to:</string>
+    <string name="noUrl">Please restart application</string>
+    <string name="inetConnectBad">Check your internet connection and press refresh button</string>
+    <string name="anotherRequest">Try another request</string>
+    <string name="checkInternet">Check internet!!!</string>
+</resources>
